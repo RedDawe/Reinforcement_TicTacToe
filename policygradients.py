@@ -1,4 +1,5 @@
 # Main source: http://karpathy.github.io/2016/05/31/rl/
+# Didn't manage to train PG to a reasonable lvl of play
 
 import numpy as np
 import tensorflow as tf
@@ -96,6 +97,7 @@ def play_a_game(model):
 
         board = make_a_move(np.copy(board), action)
 
+        # we should probably first check for win THEN for a draw (it's wrong)
         if not generate_possible_moves(board):
             game_memory = (move_memory, 0)
 
