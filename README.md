@@ -1,3 +1,5 @@
+Only A0 seems to produce solid results for now.
+
 # Future work
 
   -variable board size (the problem is 3x3 is already computationaly quite heavy)
