@@ -1,4 +1,5 @@
 # Main source: https://github.com/Zeta36/muzero/blob/master/muzero.ipynb
+# Not perfect, might be a good idea to try regularization
 
 import numpy as np
 import tensorflow as tf
@@ -511,5 +512,5 @@ def play():
             print('game over')
             break
 
-#train()
-play()
+train()
+#play()

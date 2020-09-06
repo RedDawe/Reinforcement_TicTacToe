@@ -97,7 +97,7 @@ def play_a_game(model):
 
         board = make_a_move(np.copy(board), action)
 
-        # we should probably first check for win THEN for a draw (it's wrong)
+        # we should probably first check for win THEN for a draw (it's wrong), but this is how it's been trained
         if not generate_possible_moves(board):
             game_memory = (move_memory, 0)
 

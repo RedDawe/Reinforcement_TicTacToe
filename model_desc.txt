@@ -1,0 +1,6 @@
+model_5 - A0 w/o augmentation
+model_4 - A0 w/ augmentation
+model_3 - PG epochs, lr = (10, 0.00001)
+model_2 - PG epochs, lr = (1, 0.000001)
+model_0 - M0 variable len sequence, each_step_prediction, last step already won, no regularization, first asking if win then draw, 9 limited history in MCTS
+model_0 - M0 variable len sequence, each_step_prediction, last step already won, no regularization, asking as with others, unlimited MCTS depth and history
