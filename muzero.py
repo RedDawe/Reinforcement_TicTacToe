@@ -45,9 +45,9 @@ def make_a_move(board, action):
 def create_initial(summarize=False):
     input_board = tf.keras.Input(board_size)
     hidden = tf.keras.layers.Flatten()(input_board)
-    hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
-    hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
-    hidden = tf.keras.layers.Dense(np.product(board_size), activation='tanh')(hidden) # also try sin and relu
+    #hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
+    #hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
+    #hidden = tf.keras.layers.Dense(np.product(board_size), activation='tanh')(hidden) # also try sin and relu
 
     model = tf.keras.Model(input_board, hidden, name='Initial')
 
@@ -58,14 +58,14 @@ def create_initial(summarize=False):
 
 def create_recurrent(summarize=False):
     input_hidden, input_action = tf.keras.Input((np.product(board_size),)), tf.keras.Input(board_size)
-    #hidden = tf.keras.backend.stack([input_hidden, input_action], axis=0)
     input_hidden_reshaped = tf.keras.layers.Reshape((board_size[0], board_size[1], 1))(input_hidden)
     input_action_reshaped = tf.keras.layers.Reshape((board_size[0], board_size[1], 1))(input_action)
     hidden = tf.keras.layers.Concatenate(axis=-1)([input_hidden_reshaped, input_action_reshaped])
     hidden = tf.keras.layers.Flatten()(hidden)
-    hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
-    hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
-    next_hidden = tf.keras.layers.Dense(np.product(board_size), activation='tanh')(hidden) # also try sin and relu
+    #hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
+    #hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
+    #next_hidden = tf.keras.layers.Dense(np.product(board_size), activation='tanh')(hidden) # try activation=None
+    next_hidden = tf.keras.layers.Dense(np.product(board_size), activation=None)(hidden)
     reward = tf.keras.layers.Dense(1, activation='tanh')(hidden)
 
     model = tf.keras.Model([input_hidden, input_action], [next_hidden, reward], name='Recurrent')
@@ -78,8 +78,8 @@ def create_recurrent(summarize=False):
 def create_prediction(summarize=False):
     input_hidden = tf.keras.Input((np.product(board_size),))
     hidden = tf.keras.layers.Flatten()(input_hidden)
-    hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
-    hidden = tf.keras.layers.Dense(np.product(board_size)*4, activation='tanh')(hidden) # also try sin and relu
+    hidden = tf.keras.layers.Dense(np.product(board_size)*8, activation='tanh')(hidden) # also try sin and relu
+    hidden = tf.keras.layers.Dense(np.product(board_size)*8  , activation='tanh')(hidden) # also try sin and relu
     policy = tf.keras.layers.Dense(np.product(board_size), activation='softmax')(hidden)
     value = tf.keras.layers.Dense(1, activation='tanh')(hidden)
 
@@ -98,6 +98,7 @@ class RecurrentRNNCell(tf.keras.layers.Layer):
 
     def call(self, x, s): # we actaully don't care about the last state, but want to repeat the first one
         next_hidden, reward = self.model([s[0], x])
+        next_hidden = next_hidden * -1
         return [s[0], reward], [next_hidden] # [next_hidden, reward], [next_hidden]
 
 def build_training_ensemble(initial_model, rnn, prediction_model):
@@ -133,6 +134,7 @@ class RecurrentPredictionRNNCell(tf.keras.layers.Layer):
         """
         policy, value = self.prediction_model(s[0])
         next_hidden, reward = self.recurrent_model([s[0], x])
+        next_hidden = next_hidden * -1
         return [s[0], reward, policy, value], [next_hidden]
 
 def build_training_ensemble_with_each_step_prediction(initial_model, rnn):
@@ -442,14 +444,32 @@ def train_model(model, game_memory):
 
                 yield [state_sequence, action_sequence], [value_sequence, policy_sequence]
 
-    model.training_ensemble_each_step.fit(itertools.cycle(generator()), epochs=1000, steps_per_epoch=10, verbose=2) #2
+    model.training_ensemble_each_step.fit(itertools.cycle(generator()), epochs=10, steps_per_epoch=10, verbose=2) #2
+
+def init_perfect_recurrent(model):
+    recurrent_matrix = np.zeros([9, 18])
+    for i in range(0, 18, 2):
+        recurrent_matrix[i//2, [i, i + 1]] = 1
+
+    model.recurrent.layers[6].set_weights([recurrent_matrix.T, np.zeros(9)])
+    model.recurrent.trainable = False
+
+    return model
+
+def init_alphazero_prediction(model):
+    model.prediction.load_weights('model_4.ckpt')
+    model.prediction.trainable = False
+
+    return model
 
 def train():
     global Q, Nsa, Ns, W, P
 
     model = Network()
 
-    #model.training_ensemble_each_step.load_weights('model_1.ckpt')
+    #model.training_ensemble_each_step.load_weights('model_0.ckpt')
+    #model = init_perfect_recurrent(model)
+    #model = init_alphazero_prediction(model)
 
     for episode in range(0, 50): #100
         print('Episode:', episode)
@@ -463,12 +483,14 @@ def train():
         W = {}
         P = {}
 
-        model.training_ensemble_each_step.save_weights('model_1.ckpt')
+        model.training_ensemble_each_step.save_weights('model_0.ckpt')
         print('saving model')
 
 def play():
     model = Network()
-    model.training_ensemble_each_step.load_weights('model_1.ckpt').expect_partial()
+    model.training_ensemble_each_step.load_weights('model_0.ckpt').expect_partial()
+    #model = init_perfect_recurrent(model)
+    #model = init_alphazero_prediction(model)
 
     board = np.zeros(board_size)
     history = []
@@ -512,5 +534,5 @@ def play():
             print('game over')
             break
 
-train()
-#play()
+#train()
+play()
